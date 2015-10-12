@@ -20,16 +20,44 @@ except ImportError:
 
 from multiprocessing.dummy import Pool
 
+CONFIG_TEMPLATE = """
+; Where the pictures will be downloaded
+target-directory: ~/flickresting/
+; How many days of photos shall be kept
+days: 20
+; Maximum number of photos to keep per day
+max-per-day: 50
+
+; Picture ratio to download, and percentage of tolerance (plus or minus x %)
+ratio: 1.6
+ratio-tolerance: 8%
+
+"""
+
 BASE_URL = 'http://flickr.chivil.com/interesting/'
-TARGET = './flickr/'
+TARGET = './photos/'
 START_DATE = datetime.utcnow() - timedelta(days=1)
 RATIO = 2560 / 1600.0
 RATIO_DELTA = 0.05
-DAYS = 4
+DAYS = 20
+MAX = 50
 POOL_SIZE = 4
 
+
+def b58encode(value):
+    chars = '123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'
+    base = len(chars) # let's not bother hard-coding
+    encoded = ''
+    while value >= base:
+        div, mod = divmod(value, base)
+        encoded = chars[mod] + encoded # add to left
+        value = div
+    encoded = chars[value] + encoded # most significant remainder
+    return encoded
+
 def get_metadata(day):
-    path = os.path.join(TARGET, 'cache')
+    """Fetch JSON data for a given day"""
+    path = os.path.join(TARGET, '.cache')
     if not os.path.isdir(path):
         os.mkdir(path)
     filename = day.strftime('%Y-%m-%d.json')
@@ -61,33 +89,23 @@ def get_metadata(day):
 def ratio_ok(photo):
     return abs(RATIO - float(photo['ratio'])) < RATIO * RATIO_DELTA
 
-date = START_DATE
-to_fetch = []
-for _ in xrange(DAYS):
-    date -= timedelta(days=1)
-    data = get_metadata(date)
-    if data is None:
-        continue
-    photos = filter(ratio_ok, data['photos'])
-
-    print "%s %d photos matching %.1f +/-%d%% ratio " % (
-        date.strftime('%Y-%m-%d'), len(photos), RATIO, RATIO_DELTA * 100)
-
-    to_fetch.extend(photos)
-
-print "%d photos to fetch" % len(to_fetch)
-
 
 def store_photo(photo):
+    """Fetch a photo from flickr to storage"""
     url = photo['url']
-    filename = urlparse(url).path.split('/')[-1]
-    filepath = os.path.join(TARGET, filename)
+    parts = (photo['date'].replace('-', ''),  # day
+             b58encode(int(photo['id'])), # short id
+             urlparse(url).path.split('.')[-1]) # file extension
+    filename = '%s-%s.%s' % parts
 
+    assert '..' not in filename
+
+    filepath = os.path.join(TARGET, filename)
     if os.path.isfile(filepath):
         photo['done'] = True
         return photo
 
-    # thread-safe?
+    # not thread-safe?
     source = urllib2.urlopen(url)
     contents = source.read()
 
@@ -97,55 +115,46 @@ def store_photo(photo):
     photo['done'] = True
 
 
-def progress():
-    count = len([_ for _ in to_fetch if 'done' in _])
-    dd = '%%%dd' % len(str(len(to_fetch)))
-    template = 'Fetching %s/%s photos' % (dd, dd)
-    sys.stderr.write('\r' + template % (count, len(to_fetch)))
-    sys.stderr.flush()
 
-pool = Pool(POOL_SIZE)
+def main():
+    date = START_DATE
+    to_fetch = []
+    for _ in xrange(DAYS):
+        date -= timedelta(days=1)
+        data = get_metadata(date)
+        if data is None:
+            continue
 
-res = pool.map_async(store_photo, to_fetch)
+        photos = []
+        for photo in data['photos']:
+            if ratio_ok(photo):
+                photo['date'] = data['date']
+                photos.append(photo)
 
-while not res.ready():
+        print "%s %d photos matching %.1f +/-%d%% ratio " % (
+            date.strftime('%Y-%m-%d'), len(photos), RATIO, RATIO_DELTA * 100)
+
+        to_fetch.extend(photos[:MAX])
+
+    print "%d photos to fetch" % len(to_fetch)
+
+    def progress():
+        count = len([_ for _ in to_fetch if 'done' in _])
+        dd = '%%%dd' % len(str(len(to_fetch)))
+        template = 'Fetching %s/%s photos' % (dd, dd)
+        sys.stderr.write('\r' + template % (count, len(to_fetch)))
+        sys.stderr.flush()
+
+
+    pool = Pool(POOL_SIZE)
+
+    res = pool.map_async(store_photo, to_fetch)
+
+    while not res.ready():
+        progress()
+        sleep(.1)
     progress()
-    sleep(.1)
-progress()
-print >> sys.stderr, ''
 
-photos = []
-for i, photo in photos:
-    url = url_template % {
-        'id' : photo['id'],
-        'farm' : photo['farm'],
-        'server' : photo['server'],
-        'secret' : photo['secret'],
-    }
-    photo['ratio'] = get_ratio(photo)
-    pprint(photo)
-    continue
-    if i == 5:
-        break
-    
-    
-    
-    if os.path.isfile(filepath):
-        skipped += 1
-        continue
-    continue
-    source = urllib2.urlopen(url)
-    contents = source.read()
 
-    if contents[:3] == "GIF":
-        source.close()
-        _404 += 1
-        continue
-
-    destination = open(filepath, 'w+')
-    destination.write(contents)
-    destination.close()
-    
-    sys.stdout.write('.')
-    sys.stdout.flush()
-
+if __name__ == '__main__':
+    main()
