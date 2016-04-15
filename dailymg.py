@@ -50,7 +50,7 @@ POOL_SIZE = 4
 
 # init in main()
 BLACKLIST = None
-CACHEDIR = None
+DATADIR = None
 
 B58C = '123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'
 
@@ -59,7 +59,7 @@ class Blacklist(object):
     maxsize = 5000
 
     def __init__(self):
-        self.storepath = os.path.join(CACHEDIR, 'blacklist.json')
+        self.storepath = os.path.join(DATADIR, 'blacklist.json')
 
         try:
             with file(self.storepath) as blfile:
@@ -112,7 +112,7 @@ def get_metadata(day):
     """Fetch JSON data for a given day"""
 
     filename = day.strftime('%Y-%m-%d.json')
-    filepath = os.path.join(CACHEDIR, filename)
+    filepath = os.path.join(DATADIR, 'metadata', filename)
     if os.path.isfile(filepath):
         with file(filepath) as cachefile:
             return json.load(cachefile)
@@ -201,7 +201,7 @@ ICHARS = ('[=--]', '[-=-]', '[--=]', '[-=-]')
 CLEAR = '\r\033[2K'
 
 def main():
-    global BLACKLIST, CACHEDIR
+    global BLACKLIST, DATADIR
 
     date = START_DATE
     to_fetch = []
@@ -212,9 +212,13 @@ def main():
         sys.stderr.write(CLEAR + 'Fetching metadata %s' % next(iprogress))
         sys.stderr.flush()
 
-    CACHEDIR = os.path.join(TARGET, '.dailymg')
-    if not os.path.isdir(CACHEDIR):
-        os.mkdir(CACHEDIR)
+    DATADIR = os.path.join(TARGET, '.dailymg')
+    if not os.path.isdir(DATADIR):
+        os.mkdir(DATADIR)
+
+    mddir = os.path.join(DATADIR, 'metadata')
+    if not os.path.isdir(mddir):
+        os.mkdir(mddir)
 
     BLACKLIST = Blacklist()
 
