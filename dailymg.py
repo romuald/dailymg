@@ -151,7 +151,6 @@ def store_photo(photo):
 
     # not thread-safe?
     source = urllib2.urlopen(url)
-    import pdb
     
     if 'photo_unavailable' in source.url:
         # pdb.set_trace()
