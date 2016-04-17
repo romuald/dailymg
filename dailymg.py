@@ -68,10 +68,10 @@ class Blacklist(object):
             self.list = []
 
     def add(self, photo):
-        self.list.append(int(photo['id']))
+        self.list.append(photo['id'])
 
     def __contains__(self, photo):
-        return int(photo['id']) in self.list
+        return photo['id'] in self.list
 
     def save(self):
         del self.list[self.maxsize:]
@@ -150,7 +150,7 @@ def store_photo(photo):
     url = photo['url']
 
     parts = (photo['date'].replace('-', ''),  # day
-             b58encode(int(photo['id'])), # short id
+             photo['id'], # short id
              urlparse(url).path.split('.')[-1]) # file extension
     filename = '%s-%s.%s' % parts
 
