@@ -101,8 +101,9 @@ def get_metadata(day):
 
     filename = day.strftime('%Y-%m-%d.json')
     filepath = os.path.join(DATADIR, 'metadata', filename)
-    if os.path.isfile(filepath):
-        with file(filepath) as cachefile:
+    zfilepath = filepath + '.gz'
+    if os.path.isfile(zfilepath):
+        with gzip.GzipFile(zfilepath) as cachefile:
             return json.load(cachefile)
 
     url = BASE_URL + filename
@@ -121,7 +122,9 @@ def get_metadata(day):
     else:
         data = res.read()
 
-    with file(filepath, 'w+') as cachefile:
+    with gzip.GzipFile(zfilepath, 'w+') as cachefile:
+        buf = StringIO(data)
+
         cachefile.write(data)
     return json.loads(data)
 
