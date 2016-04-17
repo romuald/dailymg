@@ -52,8 +52,6 @@ POOL_SIZE = 4
 BLACKLIST = None
 DATADIR = None
 
-B58C = '123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'
-
 
 class Blacklist(object):
     maxsize = 5000
@@ -79,16 +77,6 @@ class Blacklist(object):
         with file(self.storepath, 'w+') as blfile:
             json.dump(self.list, blfile)
 
-
-def b58encode(value):
-    base = len(B58C)
-    encoded = ''
-    while value >= base:
-        div, mod = divmod(value, base)
-        encoded = B58C[mod] + encoded # add to left
-        value = div
-    encoded = B58C[value] + encoded # most significant remainder
-    return encoded
 
 def store_photo_url(path, url):
     """
@@ -186,7 +174,7 @@ def remove_expired():
     # Do not blindly remove photos of more than X days
     # Instead, keep N photos. In case we could not retrive some recent photos
     to_keep = DAYS * MAX  
-    photo_re = re.compile('^[0-9]+-[%s]+\.[a-zA-Z0-9]+$' % B58C)
+    photo_re = re.compile('^[0-9]+-[a-zA-Z0-9]+\.[a-zA-Z0-9]+$')
     tmp = os.listdir(TARGET)
     photos = [name for name in tmp if photo_re.match(name)]
     photos.sort(reverse=True)
