@@ -15,7 +15,7 @@ import argparse
 from time import sleep
 from pprint import pprint
 from itertools import cycle
-from urlparse  import urlparse
+from urlparse import urlparse
 from datetime import datetime, timedelta
 
 try:
@@ -96,6 +96,7 @@ def main():
 
     print parser.parse_args()
 
+
 class Dailymg(object):
     def __init__(self, target):
         self.target = target
@@ -114,7 +115,6 @@ class Dailymg(object):
             self.ratio - self.ratio * self.ratio_delta <
             float(photo['ratio']) <
             self.ratio + self.ratio * self.ratio_delta)
-        
 
     def get_metadata(self, day):
         """Fetch JSON data for a given day"""
@@ -152,9 +152,9 @@ class Dailymg(object):
         """Fetch a photo from flickr to storage"""
         url = photo['url']
 
-        parts = (photo['date'].replace('-', ''),  # day
-                 photo['id'], # short id
-                 urlparse(url).path.split('.')[-1]) # file extension
+        parts = (photo['date'].replace('-', ''),     # day
+                 photo['id'],                        # short id
+                 urlparse(url).path.split('.')[-1])  # file extension
         filename = '%s-%s.%s' % parts
 
         assert '..' not in filename
@@ -166,7 +166,7 @@ class Dailymg(object):
 
         # not thread-safe?
         source = urllib2.urlopen(url)
-        
+
         if 'photo_unavailable' in source.url:
             # pdb.set_trace()
             self.blacklist.add(photo)
@@ -189,7 +189,7 @@ class Dailymg(object):
         # Do not blindly remove photos of more than X days
         # Instead, keep N photos.
         # In case we could not retrive some recent photos
-        to_keep = self.days * self.per_day  
+        to_keep = self.days * self.per_day
         photo_re = re.compile('^[0-9]+-[a-zA-Z0-9]+\.[a-zA-Z0-9]+$')
         tmp = os.listdir(self.target)
         photos = [name for name in tmp if photo_re.match(name)]
@@ -199,7 +199,6 @@ class Dailymg(object):
         for photo in to_remove:
             os.unlink(os.path.join(self.target, photo))
         print "Deleted %d old photos" % len(to_remove)
-
 
     def start(self):
         if not os.path.isdir(self.datadir):
@@ -212,6 +211,7 @@ class Dailymg(object):
         self.blacklist.load(self.datadir)
 
         iprogress = cycle(ICHARS)
+
         def progress():
             sys.stderr.write(CLEAR + 'Fetching metadata %s' % next(iprogress))
             sys.stderr.flush()
@@ -238,9 +238,6 @@ class Dailymg(object):
                 if self.ratio_ok(photo) and photo not in self.blacklist:
                     photo['date'] = data['date']
                     photos.append(photo)
-
-            # print "%s %d photos matching %.1f +/-%d%% ratio " % (
-            #     date.strftime('%Y-%m-%d'), len(photos), RATIO, RATIO_DELTA * 100)
 
             to_fetch.extend(photos[:self.per_day])
 
@@ -271,4 +268,3 @@ class Dailymg(object):
 
 if __name__ == '__main__':
     Dailymg(TARGET).start()
-
