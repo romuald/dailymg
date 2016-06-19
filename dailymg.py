@@ -77,23 +77,49 @@ class Blacklist(object):
 
 
 def main():
-    """unused yet"""
     parser = argparse.ArgumentParser()
     parser.add_argument('target', help='Directory where to download photos')
-    parser.add_argument('-d', dest='days', type=int, default=10,
+    parser.add_argument('-d', dest='days', type=int, default=Dailymg.days,
                         help='Number of days to fetch')
-    parser.add_argument('-n', dest='number', type=int, default=4,
+    parser.add_argument('-n', dest='per_day', type=int,
+                        default=Dailymg.per_day,
                         help='Number of photos to download per day')
-    parser.add_argument('-r', dest='ratio', default=1.66,
+    parser.add_argument('-r', dest='ratio', default=Dailymg.ratio,
                         help='Image ratio to match')
-    parser.add_argument('-t', dest='tolerance', default=0.05,
+    parser.add_argument('-t', dest='ratio_delta', default=Dailymg.ratio_delta,
                         help='Image ratio tolerance')
 
-    print parser.parse_args()
+    res = parser.parse_args()
+
+    dailymg = Dailymg(res.target)
+    dailymg.days = res.days
+    dailymg.per_day = res.per_day
+    dailymg.ratio = res.ratio
+    dailymg.ratio_delta = res.ratio_delta
+
+    dailymg.start()
+
+
+def store_photo_url(path, url):
+    """
+    Optionally set the URL metadata for this photo (MacOS only)
+    """
+    try:
+        libc = ctypes.cdll.LoadLibrary('libc.dylib')
+        setxattr = libc.setxattr
+    except (OSError, AttributeError) as err:
+        # print "fail", err
+        return
+
+    path = path.encode('utf-8')
+    url = url.encode('utf-8')
+
+    setxattr(path, b'com.apple.metadata:kMDItemWhereFroms',
+             url, len(url), 0, 0)
 
 
 class Dailymg(object):
-    ratio = 2560 / 1600.0
+    ratio = 1.66
     ratio_delta = 0.05
     days = 60
     per_day = 5
@@ -247,7 +273,6 @@ class Dailymg(object):
             sys.stderr.flush()
 
         pool = Pool(POOL_SIZE)
-
         res = pool.map_async(self.store_photo, to_fetch)
 
         while not res.ready():
@@ -261,4 +286,5 @@ class Dailymg(object):
         self.remove_expired()
 
 if __name__ == '__main__':
-    Dailymg(TARGET).start()
+    main()
+    # Dailymg(TARGET).start()
