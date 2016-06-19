@@ -42,13 +42,8 @@ ratio-tolerance: 0.05
 
 BASE_URL = 'http://dailymg.chivil.com/interesting/'
 TARGET = './photos/'
-START_DATE = datetime.utcnow() - timedelta(days=1)
-RATIO = 2560 / 1600.0
-RATIO_DELTA = 0.05
-DAYS = 60
-MAX = 5
-POOL_SIZE = 4
 
+POOL_SIZE = 4
 ICHARS = ('[=--]', '[-=-]', '[--=]', '[-=-]')
 CLEAR = '\r\033[2K'
 
@@ -98,17 +93,16 @@ def main():
 
 
 class Dailymg(object):
+    ratio = 2560 / 1600.0
+    ratio_delta = 0.05
+    days = 60
+    per_day = 5
+
     def __init__(self, target):
         self.target = target
         self.datadir = os.path.join(self.target, '.dailymg')
         self.blacklist = Blacklist()
-
-        self.pool_size = POOL_SIZE
-        self.start_date = START_DATE
-        self.days = DAYS
-        self.per_day = MAX
-        self.ratio = RATIO
-        self.ratio_delta = RATIO_DELTA
+        self.start_date = datetime.utcnow() - timedelta(days=1)
 
     def ratio_ok(self, photo):
         return (
