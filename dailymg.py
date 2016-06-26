@@ -62,16 +62,50 @@ class Blacklist(object):
             pass
 
     def add(self, photo):
-        self.list.append(photo['id'])
+        self.list.append(photo.id)
 
     def __contains__(self, photo):
-        return photo['id'] in self.list
+        return photo.id in self.list
 
     def save(self):
         del self.list[self.maxsize:]
 
         with file(self.storepath, 'w+') as blfile:
             json.dump(self.list, blfile)
+
+
+class Photo(object):
+    def __init__(self, dailymg, photo):
+        self.id = photo['id']
+        self.url = photo['url']
+        self.date = photo.get('date')
+        self.ratio = float(photo['ratio'])
+        self.done = False  # Used for download progress check only
+        self.mg = dailymg
+
+
+    @property
+    def ratio_ok(self):
+        return (
+            self.mg.ratio - self.mg.ratio * self.mg.ratio_delta <
+            self.ratio <
+            self.mg.ratio + self.mg.ratio * self.mg.ratio_delta)    
+
+    @property
+    def path(self):
+        """The local file path"""
+        assert self.date
+
+        url = self.url
+
+        parts = (self.date.replace('-', ''),         # day
+                 self.id,                            # short id
+                 urlparse(url).path.split('.')[-1])  # file extension
+        filename = '%s-%s.%s' % parts
+
+        assert '..' not in filename
+
+        return os.path.join(self.mg.target, filename)
 
 
 def main():
@@ -83,15 +117,15 @@ def main():
     dailymg = Dailymg(res.target)
     dailymg.configure()
 
-    parser.add_argument('-d', dest='days', type=int, default=Dailymg.days,
+    parser.add_argument('-d', dest='days', type=int, default=dailymg.days,
                         help='Number of days to fetch')
     parser.add_argument('-n', dest='per_day', type=int,
-                        default=Dailymg.per_day,
+                        default=dailymg.per_day,
                         help='Number of photos to download per day')
-    parser.add_argument('-r', dest='ratio', default=Dailymg.ratio,
+    parser.add_argument('-r', dest='ratio', default=dailymg.ratio,
                         help='Image ratio to match')
-    parser.add_argument('-t', dest='ratio_delta', default=Dailymg.ratio_delta,
-                        help='Image ratio tolerance')
+    parser.add_argument('-t', dest='ratio_delta', default=dailymg.ratio_delta,
+                        type=float, help='Image ratio tolerance')
 
     res = parser.parse_args()
 
@@ -134,6 +168,13 @@ class Dailymg(object):
         self.start_date = datetime.utcnow() - timedelta(days=1)
 
     def configure(self):
+        if not os.path.isdir(self.datadir):
+            os.mkdir(self.datadir)
+
+        mddir = os.path.join(self.datadir, 'metadata')
+        if not os.path.isdir(mddir):
+            os.mkdir(mddir)
+
         confpath = os.path.join(self.datadir, 'config.ini')
         if os.path.exists(confpath):
             parser = SafeConfigParser(allow_no_value=True)
@@ -177,19 +218,14 @@ class Dailymg(object):
         self.ratio = get_number('Image ratio to match', self.ratio, '%.2f',
                                 float, (0.09, 1.99))
 
+        dd = {k: getattr(self, k) for k in dir(self)}
         try:
             with open(confpath, 'w+') as config:
-                config.write(CONFIG_TEMPLATE % self.__dict__)
+                config.write(CONFIG_TEMPLATE % dd)
         except:
             if os.path.exists(confpath):
                 os.remove(confpath)
             raise
-
-    def ratio_ok(self, photo):
-        return (
-            self.ratio - self.ratio * self.ratio_delta <
-            float(photo['ratio']) <
-            self.ratio + self.ratio * self.ratio_delta)
 
     def get_metadata(self, day):
         """Fetch JSON data for a given day"""
@@ -225,38 +261,24 @@ class Dailymg(object):
 
     def store_photo(self, photo):
         """Fetch a photo from flickr to storage"""
-        url = photo['url']
-
-        parts = (photo['date'].replace('-', ''),     # day
-                 photo['id'],                        # short id
-                 urlparse(url).path.split('.')[-1])  # file extension
-        filename = '%s-%s.%s' % parts
-
-        assert '..' not in filename
-
-        filepath = os.path.join(self.target, filename)
-        if os.path.isfile(filepath):
-            photo['done'] = True
-            return photo
-
         # not thread-safe?
-        source = urllib2.urlopen(url)
+        source = urllib2.urlopen(photo.url)
 
         if 'photo_unavailable' in source.url:
             # pdb.set_trace()
             self.blacklist.add(photo)
-            photo['done'] = True
+            photo.done = True
             return
 
         contents = source.read()
 
-        destination = open(filepath, 'w+')
+        destination = open(photo.path, 'w+')
         destination.write(contents)
         destination.close()
 
-        store_photo_url(filepath, url)
+        store_photo_url(photo.path, photo.url)
 
-        photo['done'] = True
+        photo.done = True
 
     def remove_expired(self):
         # XXX remove old cache files
@@ -275,16 +297,11 @@ class Dailymg(object):
             os.unlink(os.path.join(self.target, photo))
         print "Deleted %d old photos" % len(to_remove)
 
+
     def start(self):
-        if not os.path.isdir(self.datadir):
-            os.mkdir(self.datadir)
-
-        mddir = os.path.join(self.datadir, 'metadata')
-        if not os.path.isdir(mddir):
-            os.mkdir(mddir)
-
         self.blacklist.load(self.datadir)
 
+        print 'Will fetch %d photo(s) per day for the last %d days' % (self.per_day, self.days)
         iprogress = cycle(ICHARS)
 
         def progress():
@@ -310,18 +327,23 @@ class Dailymg(object):
 
             photos = []
             for photo in data['photos']:
-                if self.ratio_ok(photo) and photo not in self.blacklist:
-                    photo['date'] = data['date']
+                photo = Photo(self, photo)
+                if photo.ratio_ok and photo not in self.blacklist:
+                    photo.date = data['date']
                     photos.append(photo)
 
             to_fetch.extend(photos[:self.per_day])
 
         print >> sys.stderr, ''
 
+        # XXX optim listdir
+        to_fetch = [photo for photo in to_fetch
+                    if not os.path.exists(photo.path)]
+
         print '%d photos to fetch' % len(to_fetch)
 
         def progress():
-            count = len([_ for _ in to_fetch if 'done' in _])
+            count = len([_ for _ in to_fetch if _.done])
             dd = '%%%dd' % len(str(len(to_fetch)))
             template = 'Fetching %s/%s photos' % (dd, dd)
             sys.stderr.write('\r' + template % (count, len(to_fetch)))
@@ -337,6 +359,9 @@ class Dailymg(object):
         print >> sys.stderr, ''
 
         self.blacklist.save()
+
+        if not res.successful():
+            res.get()
 
         self.remove_expired()
 
