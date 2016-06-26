@@ -17,6 +17,7 @@ from pprint import pprint
 from itertools import cycle
 from urlparse import urlparse
 from datetime import datetime, timedelta
+from ConfigParser import SafeConfigParser
 
 try:
     from cStringIO import StringIO
@@ -25,20 +26,17 @@ except ImportError:
 
 from multiprocessing.dummy import Pool
 
-# UNUSED
 CONFIG_TEMPLATE = """
-; Where the pictures will be downloaded
-target-directory: ~/flickresting/
+[dailymg]
 ; How many days of photos shall be kept
-days: 30
+days: %(days)d
 ; Maximum number of photos to keep per day
-max-per-day: 5
+per_day: %(per_day)d
 
-; Picture ratio to download, and percentage of tolerance (plus or minus x %)
-ratio: 1.6
-ratio-tolerance: 0.05
-
-"""
+; Picture ratio to download, and percentage of tolerance (plus or minus x %%)
+ratio: %(ratio).2f
+ratio_delta: %(ratio_delta).2f
+""".lstrip()
 
 BASE_URL = 'http://dailymg.chivil.com/interesting/'
 TARGET = './photos/'
@@ -97,6 +95,8 @@ def main():
     dailymg.ratio = res.ratio
     dailymg.ratio_delta = res.ratio_delta
 
+    dailymg.configure()
+
     dailymg.start()
 
 
@@ -129,6 +129,55 @@ class Dailymg(object):
         self.datadir = os.path.join(self.target, '.dailymg')
         self.blacklist = Blacklist()
         self.start_date = datetime.utcnow() - timedelta(days=1)
+
+    def configure(self):
+        confpath = os.path.join(self.datadir, 'config.ini')
+        if os.path.exists(confpath):
+            parser = SafeConfigParser()
+            parser.read(confpath)
+
+            self.days = parser.getint('dailymg', 'days', self.days)
+            self.per_day = parser.getint('dailymg', 'per_day', self.per_day)
+            self.ratio = parser.getfloat('dailymg', 'ratio', self.ratio)
+            self.ratio_delta = parser.getfloat('dailymg', 'ratio_delta',
+                                               self.ratio_delta)
+        elif sys.stdin.isatty():
+            try:
+                self.interactive_configure(confpath)
+            except KeyboardInterrupt:
+                sys.exit(1)
+
+    def interactive_configure(self, confpath):
+        print('First run configuration')
+
+        def get_number(question, default, format_='%d', type_=int,
+                valid=(0, 999)):
+            while True:
+                ret = raw_input(question + (' [%s] ' % format_) % default)
+
+                if str(ret) == b'':
+                    return default
+                try:
+                    ret = type_(ret)
+                    if valid[0] < ret < valid[1]:
+                        return ret
+                except ValueError:
+                    continue
+
+        self.per_day = get_number('Number of photos to download per day',
+                                  self.per_day)
+        self.days = get_number('Number of days to fetch', self.days)
+        self.ratio = get_number('Image ratio to match', self.ratio, '%.2f',
+                                float, (0.09, 1.99))
+
+        try:
+            with open(confpath, 'w+') as config:
+                config.write(CONFIG_TEMPLATE % self.__dict__)
+        except:
+            if os.path.exists(confpath):
+                os.remove(confpath)
+            raise
+
 
     def ratio_ok(self, photo):
         return (
