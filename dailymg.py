@@ -77,6 +77,12 @@ class Blacklist(object):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('target', help='Directory where to download photos')
+
+    res, _ = parser.parse_known_args()
+
+    dailymg = Dailymg(res.target)
+    dailymg.configure()
+
     parser.add_argument('-d', dest='days', type=int, default=Dailymg.days,
                         help='Number of days to fetch')
     parser.add_argument('-n', dest='per_day', type=int,
@@ -89,13 +95,10 @@ def main():
 
     res = parser.parse_args()
 
-    dailymg = Dailymg(res.target)
     dailymg.days = res.days
     dailymg.per_day = res.per_day
     dailymg.ratio = res.ratio
     dailymg.ratio_delta = res.ratio_delta
-
-    dailymg.configure()
 
     dailymg.start()
 
@@ -133,14 +136,18 @@ class Dailymg(object):
     def configure(self):
         confpath = os.path.join(self.datadir, 'config.ini')
         if os.path.exists(confpath):
-            parser = SafeConfigParser()
+            parser = SafeConfigParser(allow_no_value=True)
             parser.read(confpath)
 
-            self.days = parser.getint('dailymg', 'days', self.days)
-            self.per_day = parser.getint('dailymg', 'per_day', self.per_day)
-            self.ratio = parser.getfloat('dailymg', 'ratio', self.ratio)
-            self.ratio_delta = parser.getfloat('dailymg', 'ratio_delta',
-                                               self.ratio_delta)
+            def get_option(name, default):
+                if parser.has_option('dailymg', name):
+                    return parser.get('dailymg', name)
+                return default
+            self.days = int(get_option('days', self.days))
+            self.per_day = int(get_option('per_day', self.per_day))
+            self.ratio = float(get_option('ratio', self.ratio))
+            self.ratio_delta = float(get_option('ratio_delta',
+                                                self.ratio_delta))
         elif sys.stdin.isatty():
             try:
                 self.interactive_configure(confpath)
@@ -177,7 +184,6 @@ class Dailymg(object):
             if os.path.exists(confpath):
                 os.remove(confpath)
             raise
-
 
     def ratio_ok(self, photo):
         return (
