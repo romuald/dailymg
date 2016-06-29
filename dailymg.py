@@ -281,13 +281,12 @@ class Dailymg(object):
         photo.done = True
 
     def remove_expired(self):
-        # XXX remove old cache files
-
         # Do not blindly remove photos of more than X days
         # Instead, keep N photos.
         # In case we could not retrive some recent photos
         to_keep = self.days * self.per_day
         photo_re = re.compile('^[0-9]+-[a-zA-Z0-9]+\.[a-zA-Z0-9]+$')
+        cache_re = re.compile('^[-0-9]{10}\.json\.gz$')
         tmp = os.listdir(self.target)
         photos = [name for name in tmp if photo_re.match(name)]
         photos.sort(reverse=True)
@@ -296,6 +295,16 @@ class Dailymg(object):
         for photo in to_remove:
             os.unlink(os.path.join(self.target, photo))
         print "Deleted %d old photos" % len(to_remove)
+
+        to_keep = self.days
+        cachedir = os.path.join(self.datadir, 'metadata')
+        tmp = os.listdir(cachedir)
+        cachefiles = [name for name in tmp if cache_re.match(name)]
+        cachefiles.sort(reverse=True)
+        to_remove = cachefiles[to_keep:]
+        for cachefile in to_remove:
+            os.unlink(os.path.join(cachedir, cachefile))
+        print "Deleted %d old cache files" % len(to_remove)
 
 
     def start(self):
