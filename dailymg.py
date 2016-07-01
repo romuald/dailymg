@@ -83,13 +83,12 @@ class Photo(object):
         self.done = False  # Used for download progress check only
         self.mg = dailymg
 
-
     @property
     def ratio_ok(self):
         return (
             self.mg.ratio - self.mg.ratio * self.mg.ratio_delta <
             self.ratio <
-            self.mg.ratio + self.mg.ratio * self.mg.ratio_delta)    
+            self.mg.ratio + self.mg.ratio * self.mg.ratio_delta)
 
     @property
     def path(self):
@@ -106,6 +105,9 @@ class Photo(object):
         assert '..' not in filename
 
         return os.path.join(self.mg.target, filename)
+
+    def __repr__(self):
+        return '<Photo %s (%s)>' % (self.id, self.date)
 
 
 def main():
@@ -199,7 +201,7 @@ class Dailymg(object):
         print('First run configuration')
 
         def get_number(question, default, format_='%d', type_=int,
-                valid=(0, 999)):
+                       valid=(0, 999)):
             while True:
                 ret = raw_input(question + (' [%s] ' % format_) % default)
 
@@ -306,11 +308,11 @@ class Dailymg(object):
             os.unlink(os.path.join(cachedir, cachefile))
         print "Deleted %d old cache files" % len(to_remove)
 
-
     def start(self):
         self.blacklist.load(self.datadir)
 
-        print 'Will fetch %d photo(s) per day for the last %d days' % (self.per_day, self.days)
+        print 'Will fetch %d photo(s) per day for the last %d days' % \
+            (self.per_day, self.days)
         iprogress = cycle(ICHARS)
 
         def progress():
