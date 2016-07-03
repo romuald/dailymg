@@ -91,8 +91,7 @@ class Photo(object):
             self.mg.ratio + self.mg.ratio * self.mg.ratio_delta)
 
     @property
-    def path(self):
-        """The local file path"""
+    def filename(self):
         assert self.date
 
         url = self.url
@@ -104,7 +103,12 @@ class Photo(object):
 
         assert '..' not in filename
 
-        return os.path.join(self.mg.target, filename)
+        return filename
+
+    @property
+    def path(self):
+        """The local file path"""
+        return os.path.join(self.mg.target, self.filename)
 
     def __repr__(self):
         return '<Photo %s (%s)>' % (self.id, self.date)
@@ -166,6 +170,7 @@ class Dailymg(object):
     def __init__(self, target):
         self.target = target
         self.datadir = os.path.join(self.target, '.dailymg')
+        self.metadata = None
         self.blacklist = Blacklist()
         self.start_date = datetime.utcnow() - timedelta(days=1)
 
@@ -229,7 +234,7 @@ class Dailymg(object):
                 os.remove(confpath)
             raise
 
-    def get_metadata(self, day):
+    def get_day_metadata(self, day):
         """Fetch JSON data for a given day"""
 
         filename = day.strftime('%Y-%m-%d.json')
@@ -283,21 +288,23 @@ class Dailymg(object):
         photo.done = True
 
     def remove_expired(self):
-        # Do not blindly remove photos of more than X days
-        # Instead, keep N photos.
-        # In case we could not retrive some recent photos
-        to_keep = self.days * self.per_day
+        # Remove photos matching the photo pattern that aren't in the list of
+        # photos we should have.
+        # This is done to avoid an "infinite" fetch cycle when configuration
+        # change between runs
         photo_re = re.compile('^[0-9]+-[a-zA-Z0-9]+\.[a-zA-Z0-9]+$')
         cache_re = re.compile('^[-0-9]{10}\.json\.gz$')
-        tmp = os.listdir(self.target)
-        photos = [name for name in tmp if photo_re.match(name)]
-        photos.sort(reverse=True)
 
-        to_remove = photos[to_keep:]
+        current = set(name for name in os.listdir(self.target)
+                      if photo_re.match(name))
+        to_keep = set(photo.filename for photo in self.get_photos())
+        to_remove = current - to_keep
+
         for photo in to_remove:
             os.unlink(os.path.join(self.target, photo))
         print "Deleted %d old photos" % len(to_remove)
 
+        # Clear cache too
         to_keep = self.days
         cachedir = os.path.join(self.datadir, 'metadata')
         tmp = os.listdir(cachedir)
@@ -308,31 +315,12 @@ class Dailymg(object):
             os.unlink(os.path.join(cachedir, cachefile))
         print "Deleted %d old cache files" % len(to_remove)
 
-    def start(self):
-        self.blacklist.load(self.datadir)
+    def get_photos(self):
+        if self.metadata is None:
+            self.metadata = self._fetch_metadata()
 
-        print 'Will fetch %d photo(s) per day for the last %d days' % \
-            (self.per_day, self.days)
-        iprogress = cycle(ICHARS)
-
-        def progress():
-            sys.stderr.write(CLEAR + 'Fetching metadata %s' % next(iprogress))
-            sys.stderr.flush()
-
-        pool = Pool(POOL_SIZE)
-
-        todo = [self.start_date - timedelta(days=i) for i in range(self.days)]
-
-        metadata = pool.map_async(self.get_metadata, todo)
-        while not metadata.ready():
-            progress()
-            sleep(.1)
-
-        sys.stderr.write(CLEAR + 'Fetching metadata [ * ]\n')
-        sys.stderr.flush()
-
-        to_fetch = []
-        for data in metadata.get():
+        ret = []
+        for data in self.metadata:
             if data is None:
                 continue
 
@@ -343,9 +331,39 @@ class Dailymg(object):
                     photo.date = data['date']
                     photos.append(photo)
 
-            to_fetch.extend(photos[:self.per_day])
+            ret.extend(photos[:self.per_day])
 
-        print >> sys.stderr, ''
+        return ret
+
+    def _fetch_metadata(self):
+        iprogress = cycle(ICHARS)
+
+        def progress():
+            sys.stderr.write(CLEAR + 'Fetching metadata %s' % next(iprogress))
+            sys.stderr.flush()
+
+        pool = Pool(POOL_SIZE)
+
+        todo = [self.start_date - timedelta(days=i) for i in range(self.days)]
+
+        metadata = pool.map_async(self.get_day_metadata, todo)
+        while not metadata.ready():
+            progress()
+            sleep(.1)
+
+        sys.stderr.write(CLEAR + 'Fetching metadata [ * ]\n')
+        sys.stderr.flush()
+
+        return metadata.get()
+
+    def start(self):
+        self.blacklist.load(self.datadir)
+
+        print 'Will fetch %d photo(s) per day for the last %d days' % \
+            (self.per_day, self.days)
+
+
+        to_fetch = self.get_photos()
 
         # XXX optim listdir
         to_fetch = [photo for photo in to_fetch
