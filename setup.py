@@ -7,6 +7,8 @@ AUTHOR = 'Romuald Brunet'
 
 setup(name=NAME,
       version=VERSION,
+      packages=[NAME],
+      package_dir={'': 'src'},
       author='Romuald Brunet',
       author_email='romuald@chivil.com',
       entry_points={'console_scripts': ['dailymg = dailymg:main']},
