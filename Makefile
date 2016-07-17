@@ -23,7 +23,7 @@ clean:
 	find ${SRCDIR} -name '*.py[co]' -print0 | xargs -0 rm
 
 zip: clean
-	cd ${SRCDIR} && zip -r ../${TMPZIP} *
+	cd ${SRCDIR} && zip -r -9 --exclude=*.egg-info* ../${TMPZIP} *
 	echo ${MAIN} > ${TMPMAIN}
 	zip -j ${TMPZIP} ${TMPMAIN}
 
