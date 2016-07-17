@@ -29,6 +29,7 @@ def discores_osx():
     output = subprocess.check_output(run)
     return tuple(map(int, output.strip().split(' ')))
 
+
 def discores_x():
     check = re.compile(r'\s+(\d+)x(\d+)\s+[.0-9]+\*')
     output = subprocess.check_output(['xrandr'])
@@ -38,6 +39,7 @@ def discores_x():
             return int(match.group(1)), int(match.group(2))
 
     return None
+
 
 def discores_win32():
     user32 = ctypes.windll.user32
@@ -56,5 +58,6 @@ def discores():
 
     return discores_x()
 
+
 if __name__ == '__main__':
-    print 'Width: %s - Height: %s' % discores()
+    print('Width: %s - Height: %s' % discores())
