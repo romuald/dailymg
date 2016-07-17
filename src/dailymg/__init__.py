@@ -26,6 +26,9 @@ except ImportError:
 
 from multiprocessing.dummy import Pool
 
+from .blacklist import Blacklist
+
+
 CONFIG_TEMPLATE = """
 [dailymg]
 ; How many days of photos shall be kept
@@ -44,34 +47,6 @@ TARGET = './photos/'
 POOL_SIZE = 4
 ICHARS = ('[=--]', '[-=-]', '[--=]', '[-=-]')
 CLEAR = '\r\033[2K'
-
-
-class Blacklist(object):
-    maxsize = 5000
-
-    def __init__(self):
-        self.list = []
-
-    def load(self, datadir):
-        self.storepath = os.path.join(datadir, 'blacklist.json')
-
-        try:
-            with file(self.storepath) as blfile:
-                self.list = json.load(blfile)
-        except Exception:
-            pass
-
-    def add(self, photo):
-        self.list.append(photo.id)
-
-    def __contains__(self, photo):
-        return photo.id in self.list
-
-    def save(self):
-        del self.list[self.maxsize:]
-
-        with file(self.storepath, 'w+') as blfile:
-            json.dump(self.list, blfile)
 
 
 class Photo(object):
