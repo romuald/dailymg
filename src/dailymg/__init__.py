@@ -1,1 +1,1 @@
-from .dailymg import main
+from .dailymg import main  # noqa

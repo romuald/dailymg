@@ -2,7 +2,6 @@
 # vim: ts=4 sw=4 et ai
 from __future__ import unicode_literals, absolute_import
 
-import os
 import re
 import sys
 import gzip
@@ -13,7 +12,7 @@ import urllib2
 import argparse
 
 from time import sleep
-from pprint import pprint
+from pprint import pprint  # noqa
 from itertools import cycle
 from StringIO import StringIO
 from datetime import datetime, timedelta
@@ -81,8 +80,7 @@ def store_photo_url(path, url):
     try:
         libc = ctypes.cdll.LoadLibrary('libc.dylib')
         setxattr = libc.setxattr
-    except (OSError, AttributeError) as err:
-        # print "fail", err
+    except (OSError, AttributeError):
         return
 
     path = path.encode('utf-8')
@@ -180,7 +178,7 @@ class Dailymg(object):
         req.add_header('Accept-Encoding', 'gzip')
         try:
             res = urllib2.urlopen(req)
-        except Exception as err:
+        except Exception as err:  # noqa
             # print '%s - %d' % (url, err.code)
             return None
 

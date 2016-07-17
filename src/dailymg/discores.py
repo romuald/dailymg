@@ -1,9 +1,8 @@
-import os
 import re
 import sys
-import errno
 import ctypes
 import subprocess
+from StringIO import StringIO
 
 
 def discores_osx():
@@ -32,7 +31,7 @@ def discores_osx():
 
 def discores_x():
     check = re.compile(r'\s+(\d+)x(\d+)\s+[.0-9]+\*')
-    output = subprocess.check_output(['xrandr'])
+    output = subprocess.check_output(['xrandr'], stderr=StringIO())
     for line in output.split('\n'):
         match = check.match(line)
         if match:
@@ -51,12 +50,15 @@ def discores_win32():
 
 
 def discores():
-    if sys.platform == 'darwin':
-        return discores_osx()
-    if sys.platform in ('win32', 'cygwin'):
-        return discores_win32()
+    try:
+        if sys.platform == 'darwin':
+            return discores_osx()
+        if sys.platform in ('win32', 'cygwin'):
+            return discores_win32()
 
-    return discores_x()
+        return discores_x()
+    except Exception:
+        return None
 
 
 if __name__ == '__main__':
