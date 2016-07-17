@@ -19,8 +19,7 @@ TMPMAIN := ${TMPDIR}/__main__.py
 default: zip
 
 clean:
-	touch ${SRCDIR}/.pydummy.pyc
-	find ${SRCDIR} -name '*.py[co]' -print0 | xargs -0 rm
+	find ${SRCDIR} -name '*.py[co]' -print0 | xargs -0 rm -f
 
 zip: clean
 	cd ${SRCDIR} && zip -r -9 --exclude=*.egg-info* ../${TMPZIP} *
