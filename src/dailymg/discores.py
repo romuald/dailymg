@@ -1,8 +1,17 @@
+# -*- coding: utf-8 -*-
+# vim: ts=4 sw=4 et ai
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import re
 import sys
 import ctypes
 import subprocess
-from StringIO import StringIO
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 
 def discores_osx():

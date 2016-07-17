@@ -1,5 +1,14 @@
+# -*- coding: utf-8 -*-
+# vim: ts=4 sw=4 et ai
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import os.path
-from urlparse import urlparse
+
+try:
+    from urlparse import urlparse
+except ImportError:
+    from urllib.parse import urlparse
 
 
 class Photo(object):

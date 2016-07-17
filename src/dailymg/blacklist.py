@@ -12,7 +12,7 @@ class Blacklist(object):
         self.storepath = os.path.join(datadir, 'blacklist.json')
 
         try:
-            with file(self.storepath) as blfile:
+            with open(self.storepath) as blfile:
                 self.list = json.load(blfile)
         except Exception:
             pass
@@ -26,5 +26,5 @@ class Blacklist(object):
     def save(self):
         del self.list[self.maxsize:]
 
-        with file(self.storepath, 'w+') as blfile:
+        with open(self.storepath, 'w+') as blfile:
             json.dump(self.list, blfile)

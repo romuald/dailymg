@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # vim: ts=4 sw=4 et ai
-from __future__ import unicode_literals, absolute_import
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import re
 import sys
@@ -8,17 +9,29 @@ import gzip
 import json
 import ctypes
 import os.path
-import urllib2
 import argparse
 
 from time import sleep
 from pprint import pprint  # noqa
 from itertools import cycle
-from StringIO import StringIO
 from datetime import datetime, timedelta
-from ConfigParser import SafeConfigParser
 
 from multiprocessing.dummy import Pool
+
+try:
+    import urllib2 as urllib
+except ImportError:
+    import urllib.request as urllib
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
+
+try:
+    from ConfigParser import SafeConfigParser
+except ImportError:
+    from configparser import SafeConfigParser
 
 from .blacklist import Blacklist
 from .photo import Photo
@@ -171,15 +184,16 @@ class Dailymg(object):
         zfilepath = filepath + '.gz'
         if os.path.isfile(zfilepath):
             with gzip.GzipFile(zfilepath) as cachefile:
-                return json.load(cachefile)
+                # return json.load(cachefile)
+                return json.loads(cachefile.read().decode('utf-8'))
 
         url = BASE_URL + filename
-        req = urllib2.Request(url)
+        req = urllib.Request(url)
         req.add_header('Accept-Encoding', 'gzip')
         try:
-            res = urllib2.urlopen(req)
+            res = urllib.urlopen(req)
         except Exception as err:  # noqa
-            # print '%s - %d' % (url, err.code)
+            # print('%s - %d' % (url, err.code))
             return None
 
         if res.info().get('Content-Encoding') == 'gzip':
@@ -198,7 +212,7 @@ class Dailymg(object):
     def store_photo(self, photo):
         """Fetch a photo from flickr to storage"""
         # not thread-safe?
-        source = urllib2.urlopen(photo.url)
+        source = urllib.urlopen(photo.url)
 
         if 'photo_unavailable' in source.url:
             # pdb.set_trace()
@@ -208,7 +222,7 @@ class Dailymg(object):
 
         contents = source.read()
 
-        destination = open(photo.path, 'w+')
+        destination = open(photo.path, 'wb+')
         destination.write(contents)
         destination.close()
 
@@ -231,7 +245,7 @@ class Dailymg(object):
 
         for photo in to_remove:
             os.unlink(os.path.join(self.target, photo))
-        print "Deleted %d old photos" % len(to_remove)
+        print('Deleted %d old photos' % len(to_remove))
 
         # Clear cache too
         to_keep = self.days
@@ -242,7 +256,7 @@ class Dailymg(object):
         to_remove = cachefiles[to_keep:]
         for cachefile in to_remove:
             os.unlink(os.path.join(cachedir, cachefile))
-        print "Deleted %d old cache files" % len(to_remove)
+        print('Deleted %d old cache files' % len(to_remove))
 
     def get_photos(self):
         if self.metadata is None:
@@ -268,8 +282,8 @@ class Dailymg(object):
         iprogress = cycle(ICHARS)
 
         def progress():
-            sys.stderr.write(CLEAR + 'Fetching metadata %s' % next(iprogress))
-            sys.stderr.flush()
+            print(CLEAR + 'Fetching metadata %s' % next(iprogress),
+                  file=sys.stderr, end='', flush=True)
 
         pool = Pool(POOL_SIZE)
 
@@ -280,16 +294,15 @@ class Dailymg(object):
             progress()
             sleep(.1)
 
-        sys.stderr.write(CLEAR + 'Fetching metadata [ * ]\n')
-        sys.stderr.flush()
+        print(CLEAR + 'Fetching metadata [ * ]', file=sys.stderr)
 
         return metadata.get()
 
     def start(self):
         self.blacklist.load(self.datadir)
 
-        print 'Will fetch %d photo(s) per day for the last %d days' % \
-            (self.per_day, self.days)
+        print('Will fetch %d photo(s) per day for the last %d days' %
+              (self.per_day, self.days))
 
         to_fetch = self.get_photos()
 
@@ -297,14 +310,14 @@ class Dailymg(object):
         to_fetch = [photo for photo in to_fetch
                     if not os.path.exists(photo.path)]
 
-        print '%d photos to fetch' % len(to_fetch)
+        print('%d photos to fetch' % len(to_fetch))
 
         def progress():
             count = len([_ for _ in to_fetch if _.done])
             dd = '%%%dd' % len(str(len(to_fetch)))
             template = 'Fetching %s/%s photos' % (dd, dd)
-            sys.stderr.write('\r' + template % (count, len(to_fetch)))
-            sys.stderr.flush()
+            print('\r' + template % (count, len(to_fetch)),
+                  file=sys.stderr, end='', flush=True)
 
         pool = Pool(POOL_SIZE)
         res = pool.map_async(self.store_photo, to_fetch)
@@ -313,7 +326,7 @@ class Dailymg(object):
             progress()
             sleep(.1)
         progress()
-        print >> sys.stderr, ''
+        print('', file=sys.stderr)
 
         self.blacklist.save()
 
