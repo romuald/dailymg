@@ -293,7 +293,6 @@ class Dailymg(object):
         print 'Will fetch %d photo(s) per day for the last %d days' % \
             (self.per_day, self.days)
 
-
         to_fetch = self.get_photos()
 
         # XXX optim listdir
