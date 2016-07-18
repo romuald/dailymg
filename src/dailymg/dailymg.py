@@ -25,8 +25,9 @@ except ImportError:
 
 try:
     from StringIO import StringIO
+    BytesIO = StringIO
 except ImportError:
-    from io import StringIO
+    from io import StringIO, BytesIO
 
 try:
     from ConfigParser import SafeConfigParser
@@ -197,17 +198,15 @@ class Dailymg(object):
             return None
 
         if res.info().get('Content-Encoding') == 'gzip':
-            buf = StringIO(res.read())
+            buf = BytesIO(res.read())
             f = gzip.GzipFile(fileobj=buf)
             data = f.read()
         else:
             data = res.read()
 
         with gzip.GzipFile(zfilepath, 'w+') as cachefile:
-            buf = StringIO(data)
-
             cachefile.write(data)
-        return json.loads(data)
+        return json.loads(data.decode('utf-8'))
 
     def store_photo(self, photo):
         """Fetch a photo from flickr to storage"""
@@ -283,7 +282,7 @@ class Dailymg(object):
 
         def progress():
             print(CLEAR + 'Fetching metadata %s' % next(iprogress),
-                  file=sys.stderr, end='', flush=True)
+                  file=sys.stderr, end='')
 
         pool = Pool(POOL_SIZE)
 
@@ -317,7 +316,7 @@ class Dailymg(object):
             dd = '%%%dd' % len(str(len(to_fetch)))
             template = 'Fetching %s/%s photos' % (dd, dd)
             print('\r' + template % (count, len(to_fetch)),
-                  file=sys.stderr, end='', flush=True)
+                  file=sys.stderr, end='')
 
         pool = Pool(POOL_SIZE)
         res = pool.map_async(self.store_photo, to_fetch)
