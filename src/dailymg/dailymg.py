@@ -11,7 +11,6 @@ import ctypes
 import os.path
 import argparse
 
-from time import sleep
 from pprint import pprint  # noqa
 from itertools import cycle
 from datetime import datetime, timedelta
@@ -288,7 +287,7 @@ class Dailymg(object):
         metadata = pool.map_async(self.get_day_metadata, todo)
         while not metadata.ready():
             progress()
-            sleep(.1)
+            metadata.wait(0.1)
 
         print(CLEAR + 'Fetching metadata [ * ]', file=sys.stderr)
 
@@ -320,7 +319,7 @@ class Dailymg(object):
 
         while not res.ready():
             progress()
-            sleep(.1)
+            res.wait(0.1)
         progress()
         print('', file=sys.stderr)
 
