@@ -8,10 +8,7 @@ import sys
 import ctypes
 import subprocess
 
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 
 def discores_osx():

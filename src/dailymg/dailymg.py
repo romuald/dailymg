@@ -19,20 +19,17 @@ from datetime import datetime, timedelta
 from multiprocessing.dummy import Pool
 
 try:
-    import urllib2 as urllib
-except ImportError:
     import urllib.request as urllib
+except ImportError:
+    import urllib2 as urllib
+
+from io import StringIO, BytesIO
 
 try:
-    from StringIO import StringIO
-    BytesIO = StringIO
-except ImportError:
-    from io import StringIO, BytesIO
-
-try:
-    from ConfigParser import SafeConfigParser
-except ImportError:
     from configparser import SafeConfigParser
+except ImportError:
+    from ConfigParser import SafeConfigParser
+
 
 from .blacklist import Blacklist
 from .photo import Photo

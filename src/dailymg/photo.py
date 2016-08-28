@@ -6,9 +6,9 @@ from __future__ import (absolute_import, division, print_function,
 import os.path
 
 try:
-    from urlparse import urlparse
-except ImportError:
     from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 
 
 class Photo(object):
