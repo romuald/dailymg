@@ -24,7 +24,7 @@ def side_open(arg):
     print("REQUEST READ FOR:", arg)
 
     ret = mock.MagicMock()
-    ret.read.side_effect = ['{"photos": [], "url": "%s"}' % arg.url]
+    ret.read.side_effect = [b'{"photos": [], "url": "%s"}' % arg.url]
     return ret
     return '{"photos": []}'
 
@@ -69,22 +69,6 @@ class TestBase(unittest.TestCase):
     #@mock.patch('dailymg.dailymg.urllib.urlopen')
     #@mock.patch('dailymg.dailymg.urllib.Request')
     def test_foo(self, ):#m_request, m_urlopen):
-        def side1(arg):
-            print("REQUEST FOR:", arg)
-            ret = mock.MagicMock(url=arg)
-            # ret.read.side_effect = '{"photos": []}'
-            return ret
-
-        def side2(arg):
-            print("REQUEST READ FOR:", arg.url)
-            ret = mock.MagicMock()
-            ret.read.side_effect = ['{"photos": [], "url": "%s"}' % arg.url]
-            return ret
-            return '{"photos": []}'
-        #m_request.side_effect = side1
-        #m_urlopen.side_effect = side2
-        # m_urlopen().read.side_effect = ['{"photos": []}'] * 80
-
         mg = Dailymg(self.directory)
         mg.configure()
         mg.days = 2
