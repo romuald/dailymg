@@ -135,11 +135,16 @@ class Dailymg(object):
             self.ratio = float(get_option('ratio', self.ratio))
             self.ratio_delta = float(get_option('ratio_delta',
                                                 self.ratio_delta))
-        elif sys.stdin.isatty():
+        elif self.isatty():
             try:
                 self.interactive_configure(confpath)
             except KeyboardInterrupt:
                 sys.exit(1)
+
+    @staticmethod
+    def isatty():
+        """Monkey patched for tests"""
+        return sys.stdin.isatty()
 
     def interactive_configure(self, confpath):
         print('First run configuration')
