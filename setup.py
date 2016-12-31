@@ -7,7 +7,7 @@ NAME = 'dailymg'
 VERSION = '0.1'
 AUTHOR = 'Romuald Brunet'
 
-TEST_REQUIRE = ['pytest', 'mock']
+TEST_REQUIRE = ['pytest', 'mock', 'freezegun']
 
 setup(name=NAME,
       version=VERSION,

@@ -10,6 +10,7 @@ import json
 import ctypes
 import os.path
 import argparse
+import warnings
 
 from pprint import pprint  # noqa
 from itertools import cycle
@@ -194,8 +195,8 @@ class Dailymg(object):
         req.add_header('Accept-Encoding', 'gzip')
         try:
             res = urllib.urlopen(req)
-        except Exception as err:  # noqa
-            # print('%s - %d' % (url, err.code))
+        except Exception as err:
+            warnings.warn('Unknown error fetching %s: %s' % (day.date(), err))
             return None
 
         if res.info().get('Content-Encoding') == 'gzip':
