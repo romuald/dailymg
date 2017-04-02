@@ -6,6 +6,7 @@ import tempfile
 import shutil
 import unittest
 import warnings
+import json
 
 try:
     import urllib.request as urllib
@@ -91,7 +92,24 @@ class TestBase(unittest.TestCase):
 class MockHTTPHandler(urllib.HTTPHandler):
 
     @classmethod
+    def load_fixtures(cls):
+        path = os.path.join(os.path.dirname(__file__), 'fixtures', 'http.json')
+        with open(path) as fixture_file:
+            fixtures = json.load(fixture_file)
+
+        cls.data = {}
+        for fixture in fixtures:
+            url = fixture['url']
+            if url in cls.data:
+                raise ValueError('%s defined twice in fixtures' % url)
+
+            fixture['data'] = json.dumps(fixture['data']).encode('utf-8')
+            cls.data[url] = fixture
+
+    @classmethod
     def install(cls):
+        cls.load_fixtures()
+
         previous = urllib._opener
         urllib.install_opener(urllib.build_opener(cls))
         return previous
@@ -107,25 +125,19 @@ class MockHTTPHandler(urllib.HTTPHandler):
 
         resdata = None
         rescode = 200
-        rescodes = {200: "OK", 404: "Not found"}
+        rescodes = {200: 'OK', 404: 'Not found'}
         headers = {}
 
-        if url == 'http://dailymg.chivil.com/interesting/2015-01-01.json':
-            resdata = b'Not found'
-            rescode = 404
-        elif url == 'http://dailymg.chivil.com/interesting/2015-01-02.json':
-            resdata = b'{"photos": []}'
-        else:
-            rescode = None
+        data = self.data.get(url)
+        if data is None:
+            raise RuntimeError('Unhandled URL', url)
 
-        if rescode:
-            response = urllib.addinfourl(BytesIO(resdata), headers, url)
-            response.code = rescode
-            response.msg = rescodes.get(rescode)
+        response = urllib.addinfourl(BytesIO(data['data']), headers, url)
+        response.code = data['code']
+        response.msg = rescodes.get(response.code)
 
-            return response
+        return response
 
-        raise RuntimeError('Unhandled URL', url)
     http_open = mock_response
 
 
@@ -168,7 +180,6 @@ class TestOther(unittest.TestCase):
         assert len(w) == 1
         assert 'Not found' in str(w[0].message)
 
-    # @unittest.skip("nop")
     @freeze_time('2015-01-03')
     def test_metadata_found(self):
         mg = Dailymg(self.directory)

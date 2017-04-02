@@ -1,0 +1,14 @@
+[
+	{
+		"url": "http://dailymg.chivil.com/interesting/2015-01-01.json",
+		"code": 404,
+		"data": "Not found"
+	},
+	{
+		"url": "http://dailymg.chivil.com/interesting/2015-01-02.json",
+		"code": 200,
+		"data": {
+			"photos": []
+		}
+	}
+]
