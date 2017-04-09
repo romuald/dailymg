@@ -180,11 +180,16 @@ class TestOther(unittest.TestCase):
         assert len(w) == 1
         assert 'Not found' in str(w[0].message)
 
-    @freeze_time('2015-01-03')
     def test_metadata_found(self):
         mg = Dailymg(self.directory)
         mg.configure()
         mg.days = 2
 
-        # x = mg.get_day_metadata(datetime(2015, 1, 2))
-        print(mg.get_photos())
+        data = mg.get_day_metadata(datetime(2015, 1, 2))
+
+        assert type(data) == dict
+        assert len(data) == 1
+        assert 'photos' in data
+        assert len(data['photos']) == 1
+        assert data['photos'][0] == {'id': "4yP", "ratio": 1.66,
+                                     'url': 'http://todo'}
