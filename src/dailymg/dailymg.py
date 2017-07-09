@@ -55,14 +55,30 @@ ICHARS = ('[=--]', '[-=-]', '[--=]', '[-=-]')
 CLEAR = '\r\033[2K'
 
 
+def target_directory(value):
+    if os.path.isdir(value):
+        return value
+
+    raise argparse.ArgumentTypeError('%s must be an existing directory', value)
+
+
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('target', help='Directory where to download photos')
+    parser = argparse.ArgumentParser(prog='dailymg')
+    parser.add_argument('target', type=target_directory,
+                        help='Directory where to download photos')
+    parser.add_argument('-b', dest='blacklist', nargs='*',
+                        help='Add files to the blacklist, and delete them')
 
     res, _ = parser.parse_known_args()
 
     dailymg = Dailymg(res.target)
     dailymg.configure()
+
+    if res.blacklist:
+        dailymg.blacklist.load(dailymg.datadir)
+        dailymg.blacklist.add_from_command_line(res.blacklist)
+        dailymg.blacklist.save()
+        return
 
     parser.add_argument('-d', dest='days', type=int, default=dailymg.days,
                         help='Number of days to fetch')
@@ -216,7 +232,6 @@ class Dailymg(object):
         source = urllib.urlopen(photo.url)
 
         if 'photo_unavailable' in source.url:
-            # pdb.set_trace()
             self.blacklist.add(photo)
             photo.done = True
             return
